@@ -14,7 +14,202 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      daily_log_items: {
+        Row: {
+          created_at: string
+          daily_log_id: string
+          id: string
+          meal_name: string | null
+          meal_template_id: string | null
+          product_id: string
+          quantity_g: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          daily_log_id: string
+          id?: string
+          meal_name?: string | null
+          meal_template_id?: string | null
+          product_id: string
+          quantity_g?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          daily_log_id?: string
+          id?: string
+          meal_name?: string | null
+          meal_template_id?: string | null
+          product_id?: string
+          quantity_g?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "daily_log_items_daily_log_id_fkey"
+            columns: ["daily_log_id"]
+            isOneToOne: false
+            referencedRelation: "daily_logs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "daily_log_items_meal_template_id_fkey"
+            columns: ["meal_template_id"]
+            isOneToOne: false
+            referencedRelation: "meal_templates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "daily_log_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      daily_logs: {
+        Row: {
+          created_at: string
+          date: string
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          date: string
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      meal_template_items: {
+        Row: {
+          created_at: string
+          default_quantity_g: number
+          id: string
+          meal_template_id: string
+          product_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          default_quantity_g?: number
+          id?: string
+          meal_template_id: string
+          product_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          default_quantity_g?: number
+          id?: string
+          meal_template_id?: string
+          product_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meal_template_items_meal_template_id_fkey"
+            columns: ["meal_template_id"]
+            isOneToOne: false
+            referencedRelation: "meal_templates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meal_template_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      meal_templates: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      products: {
+        Row: {
+          brand: string | null
+          calories_per_100g: number
+          carbs_per_100g: number
+          created_at: string
+          fat_per_100g: number
+          id: string
+          name: string
+          notes: string | null
+          protein_per_100g: number
+          source_image_url: string | null
+          source_type: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          brand?: string | null
+          calories_per_100g?: number
+          carbs_per_100g?: number
+          created_at?: string
+          fat_per_100g?: number
+          id?: string
+          name: string
+          notes?: string | null
+          protein_per_100g?: number
+          source_image_url?: string | null
+          source_type?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          brand?: string | null
+          calories_per_100g?: number
+          carbs_per_100g?: number
+          created_at?: string
+          fat_per_100g?: number
+          id?: string
+          name?: string
+          notes?: string | null
+          protein_per_100g?: number
+          source_image_url?: string | null
+          source_type?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
