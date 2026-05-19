@@ -9,50 +9,267 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as IndexRouteImport } from './routes/index'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as AppRouteImport } from './routes/_app'
+import { Route as AppIndexRouteImport } from './routes/_app/index'
+import { Route as AppSettingsRouteImport } from './routes/_app/settings'
+import { Route as AppLogRouteImport } from './routes/_app/log'
+import { Route as AppProductsIndexRouteImport } from './routes/_app/products.index'
+import { Route as AppMealsIndexRouteImport } from './routes/_app/meals.index'
+import { Route as AppProductsNewRouteImport } from './routes/_app/products.new'
+import { Route as AppProductsProductIdRouteImport } from './routes/_app/products.$productId'
+import { Route as AppMealsNewRouteImport } from './routes/_app/meals.new'
+import { Route as AppMealsMealIdRouteImport } from './routes/_app/meals.$mealId'
 
-const IndexRoute = IndexRouteImport.update({
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AppRoute = AppRouteImport.update({
+  id: '/_app',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AppIndexRoute = AppIndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => AppRoute,
+} as any)
+const AppSettingsRoute = AppSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppLogRoute = AppLogRouteImport.update({
+  id: '/log',
+  path: '/log',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppProductsIndexRoute = AppProductsIndexRouteImport.update({
+  id: '/products/',
+  path: '/products/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppMealsIndexRoute = AppMealsIndexRouteImport.update({
+  id: '/meals/',
+  path: '/meals/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppProductsNewRoute = AppProductsNewRouteImport.update({
+  id: '/products/new',
+  path: '/products/new',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppProductsProductIdRoute = AppProductsProductIdRouteImport.update({
+  id: '/products/$productId',
+  path: '/products/$productId',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppMealsNewRoute = AppMealsNewRouteImport.update({
+  id: '/meals/new',
+  path: '/meals/new',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppMealsMealIdRoute = AppMealsMealIdRouteImport.update({
+  id: '/meals/$mealId',
+  path: '/meals/$mealId',
+  getParentRoute: () => AppRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
+  '/': typeof AppIndexRoute
+  '/login': typeof LoginRoute
+  '/log': typeof AppLogRoute
+  '/settings': typeof AppSettingsRoute
+  '/meals/$mealId': typeof AppMealsMealIdRoute
+  '/meals/new': typeof AppMealsNewRoute
+  '/products/$productId': typeof AppProductsProductIdRoute
+  '/products/new': typeof AppProductsNewRoute
+  '/meals/': typeof AppMealsIndexRoute
+  '/products/': typeof AppProductsIndexRoute
 }
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
+  '/login': typeof LoginRoute
+  '/log': typeof AppLogRoute
+  '/settings': typeof AppSettingsRoute
+  '/': typeof AppIndexRoute
+  '/meals/$mealId': typeof AppMealsMealIdRoute
+  '/meals/new': typeof AppMealsNewRoute
+  '/products/$productId': typeof AppProductsProductIdRoute
+  '/products/new': typeof AppProductsNewRoute
+  '/meals': typeof AppMealsIndexRoute
+  '/products': typeof AppProductsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/': typeof IndexRoute
+  '/_app': typeof AppRouteWithChildren
+  '/login': typeof LoginRoute
+  '/_app/log': typeof AppLogRoute
+  '/_app/settings': typeof AppSettingsRoute
+  '/_app/': typeof AppIndexRoute
+  '/_app/meals/$mealId': typeof AppMealsMealIdRoute
+  '/_app/meals/new': typeof AppMealsNewRoute
+  '/_app/products/$productId': typeof AppProductsProductIdRoute
+  '/_app/products/new': typeof AppProductsNewRoute
+  '/_app/meals/': typeof AppMealsIndexRoute
+  '/_app/products/': typeof AppProductsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/login'
+    | '/log'
+    | '/settings'
+    | '/meals/$mealId'
+    | '/meals/new'
+    | '/products/$productId'
+    | '/products/new'
+    | '/meals/'
+    | '/products/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/login'
+    | '/log'
+    | '/settings'
+    | '/'
+    | '/meals/$mealId'
+    | '/meals/new'
+    | '/products/$productId'
+    | '/products/new'
+    | '/meals'
+    | '/products'
+  id:
+    | '__root__'
+    | '/_app'
+    | '/login'
+    | '/_app/log'
+    | '/_app/settings'
+    | '/_app/'
+    | '/_app/meals/$mealId'
+    | '/_app/meals/new'
+    | '/_app/products/$productId'
+    | '/_app/products/new'
+    | '/_app/meals/'
+    | '/_app/products/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
+  AppRoute: typeof AppRouteWithChildren
+  LoginRoute: typeof LoginRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/': {
-      id: '/'
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_app': {
+      id: '/_app'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AppRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_app/': {
+      id: '/_app/'
       path: '/'
       fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof AppIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/settings': {
+      id: '/_app/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof AppSettingsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/log': {
+      id: '/_app/log'
+      path: '/log'
+      fullPath: '/log'
+      preLoaderRoute: typeof AppLogRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/products/': {
+      id: '/_app/products/'
+      path: '/products'
+      fullPath: '/products/'
+      preLoaderRoute: typeof AppProductsIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/meals/': {
+      id: '/_app/meals/'
+      path: '/meals'
+      fullPath: '/meals/'
+      preLoaderRoute: typeof AppMealsIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/products/new': {
+      id: '/_app/products/new'
+      path: '/products/new'
+      fullPath: '/products/new'
+      preLoaderRoute: typeof AppProductsNewRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/products/$productId': {
+      id: '/_app/products/$productId'
+      path: '/products/$productId'
+      fullPath: '/products/$productId'
+      preLoaderRoute: typeof AppProductsProductIdRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/meals/new': {
+      id: '/_app/meals/new'
+      path: '/meals/new'
+      fullPath: '/meals/new'
+      preLoaderRoute: typeof AppMealsNewRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/meals/$mealId': {
+      id: '/_app/meals/$mealId'
+      path: '/meals/$mealId'
+      fullPath: '/meals/$mealId'
+      preLoaderRoute: typeof AppMealsMealIdRouteImport
+      parentRoute: typeof AppRoute
     }
   }
 }
 
+interface AppRouteChildren {
+  AppLogRoute: typeof AppLogRoute
+  AppSettingsRoute: typeof AppSettingsRoute
+  AppIndexRoute: typeof AppIndexRoute
+  AppMealsMealIdRoute: typeof AppMealsMealIdRoute
+  AppMealsNewRoute: typeof AppMealsNewRoute
+  AppProductsProductIdRoute: typeof AppProductsProductIdRoute
+  AppProductsNewRoute: typeof AppProductsNewRoute
+  AppMealsIndexRoute: typeof AppMealsIndexRoute
+  AppProductsIndexRoute: typeof AppProductsIndexRoute
+}
+
+const AppRouteChildren: AppRouteChildren = {
+  AppLogRoute: AppLogRoute,
+  AppSettingsRoute: AppSettingsRoute,
+  AppIndexRoute: AppIndexRoute,
+  AppMealsMealIdRoute: AppMealsMealIdRoute,
+  AppMealsNewRoute: AppMealsNewRoute,
+  AppProductsProductIdRoute: AppProductsProductIdRoute,
+  AppProductsNewRoute: AppProductsNewRoute,
+  AppMealsIndexRoute: AppMealsIndexRoute,
+  AppProductsIndexRoute: AppProductsIndexRoute,
+}
+
+const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
-  IndexRoute: IndexRoute,
+  AppRoute: AppRouteWithChildren,
+  LoginRoute: LoginRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
