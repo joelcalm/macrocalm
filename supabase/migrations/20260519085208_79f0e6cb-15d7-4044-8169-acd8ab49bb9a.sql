@@ -16,10 +16,10 @@ CREATE TABLE public.products (
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
   brand TEXT,
-  calories_per_100g NUMERIC NOT NULL DEFAULT 0,
-  protein_per_100g NUMERIC NOT NULL DEFAULT 0,
-  carbs_per_100g NUMERIC NOT NULL DEFAULT 0,
-  fat_per_100g NUMERIC NOT NULL DEFAULT 0,
+  calories_per_100g NUMERIC NOT NULL DEFAULT 0 CHECK (calories_per_100g >= 0),
+  protein_per_100g NUMERIC NOT NULL DEFAULT 0 CHECK (protein_per_100g >= 0),
+  carbs_per_100g NUMERIC NOT NULL DEFAULT 0 CHECK (carbs_per_100g >= 0),
+  fat_per_100g NUMERIC NOT NULL DEFAULT 0 CHECK (fat_per_100g >= 0),
   source_type TEXT NOT NULL DEFAULT 'manual' CHECK (source_type IN ('manual','photo')),
   source_image_url TEXT,
   notes TEXT,
@@ -56,7 +56,7 @@ CREATE TABLE public.meal_template_items (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   meal_template_id UUID NOT NULL REFERENCES public.meal_templates(id) ON DELETE CASCADE,
   product_id UUID NOT NULL REFERENCES public.products(id) ON DELETE CASCADE,
-  default_quantity_g NUMERIC NOT NULL DEFAULT 100,
+  default_quantity_g NUMERIC NOT NULL DEFAULT 100 CHECK (default_quantity_g >= 0),
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -65,9 +65,16 @@ ALTER TABLE public.meal_template_items ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "own mti select" ON public.meal_template_items FOR SELECT
   USING (EXISTS (SELECT 1 FROM public.meal_templates m WHERE m.id = meal_template_id AND m.user_id = auth.uid()));
 CREATE POLICY "own mti insert" ON public.meal_template_items FOR INSERT
-  WITH CHECK (EXISTS (SELECT 1 FROM public.meal_templates m WHERE m.id = meal_template_id AND m.user_id = auth.uid()));
+  WITH CHECK (
+    EXISTS (SELECT 1 FROM public.meal_templates m WHERE m.id = meal_template_id AND m.user_id = auth.uid())
+    AND EXISTS (SELECT 1 FROM public.products p WHERE p.id = product_id AND p.user_id = auth.uid())
+  );
 CREATE POLICY "own mti update" ON public.meal_template_items FOR UPDATE
-  USING (EXISTS (SELECT 1 FROM public.meal_templates m WHERE m.id = meal_template_id AND m.user_id = auth.uid()));
+  USING (EXISTS (SELECT 1 FROM public.meal_templates m WHERE m.id = meal_template_id AND m.user_id = auth.uid()))
+  WITH CHECK (
+    EXISTS (SELECT 1 FROM public.meal_templates m WHERE m.id = meal_template_id AND m.user_id = auth.uid())
+    AND EXISTS (SELECT 1 FROM public.products p WHERE p.id = product_id AND p.user_id = auth.uid())
+  );
 CREATE POLICY "own mti delete" ON public.meal_template_items FOR DELETE
   USING (EXISTS (SELECT 1 FROM public.meal_templates m WHERE m.id = meal_template_id AND m.user_id = auth.uid()));
 CREATE TRIGGER mti_updated BEFORE UPDATE ON public.meal_template_items FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
@@ -94,7 +101,7 @@ CREATE TABLE public.daily_log_items (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   daily_log_id UUID NOT NULL REFERENCES public.daily_logs(id) ON DELETE CASCADE,
   product_id UUID NOT NULL REFERENCES public.products(id) ON DELETE CASCADE,
-  quantity_g NUMERIC NOT NULL DEFAULT 100,
+  quantity_g NUMERIC NOT NULL DEFAULT 100 CHECK (quantity_g >= 0),
   meal_template_id UUID REFERENCES public.meal_templates(id) ON DELETE SET NULL,
   meal_name TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -105,9 +112,24 @@ ALTER TABLE public.daily_log_items ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "own dli select" ON public.daily_log_items FOR SELECT
   USING (EXISTS (SELECT 1 FROM public.daily_logs d WHERE d.id = daily_log_id AND d.user_id = auth.uid()));
 CREATE POLICY "own dli insert" ON public.daily_log_items FOR INSERT
-  WITH CHECK (EXISTS (SELECT 1 FROM public.daily_logs d WHERE d.id = daily_log_id AND d.user_id = auth.uid()));
+  WITH CHECK (
+    EXISTS (SELECT 1 FROM public.daily_logs d WHERE d.id = daily_log_id AND d.user_id = auth.uid())
+    AND EXISTS (SELECT 1 FROM public.products p WHERE p.id = product_id AND p.user_id = auth.uid())
+    AND (
+      meal_template_id IS NULL
+      OR EXISTS (SELECT 1 FROM public.meal_templates m WHERE m.id = meal_template_id AND m.user_id = auth.uid())
+    )
+  );
 CREATE POLICY "own dli update" ON public.daily_log_items FOR UPDATE
-  USING (EXISTS (SELECT 1 FROM public.daily_logs d WHERE d.id = daily_log_id AND d.user_id = auth.uid()));
+  USING (EXISTS (SELECT 1 FROM public.daily_logs d WHERE d.id = daily_log_id AND d.user_id = auth.uid()))
+  WITH CHECK (
+    EXISTS (SELECT 1 FROM public.daily_logs d WHERE d.id = daily_log_id AND d.user_id = auth.uid())
+    AND EXISTS (SELECT 1 FROM public.products p WHERE p.id = product_id AND p.user_id = auth.uid())
+    AND (
+      meal_template_id IS NULL
+      OR EXISTS (SELECT 1 FROM public.meal_templates m WHERE m.id = meal_template_id AND m.user_id = auth.uid())
+    )
+  );
 CREATE POLICY "own dli delete" ON public.daily_log_items FOR DELETE
   USING (EXISTS (SELECT 1 FROM public.daily_logs d WHERE d.id = daily_log_id AND d.user_id = auth.uid()));
 CREATE TRIGGER dli_updated BEFORE UPDATE ON public.daily_log_items FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();

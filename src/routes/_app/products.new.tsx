@@ -1,9 +1,9 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { AppShell } from "@/components/AppShell";
 import { ProductForm, emptyForm } from "@/components/ProductForm";
-import { createProduct, uploadProductLabel } from "@/lib/supabaseQueries";
+import { createProduct } from "@/lib/supabaseQueries";
 import { extractNutritionFromImage } from "@/lib/vision/extractNutrition.functions";
 import { Camera, Pencil, Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -18,44 +18,58 @@ function NewProductPage() {
   const [step, setStep] = useState<Step>("choose");
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [initial, setInitial] = useState(emptyForm());
-  const [uploading, setUploading] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const nav = useNavigate();
   const extractFn = useServerFn(extractNutritionFromImage);
 
+  useEffect(() => {
+    return () => {
+      if (imageUrl?.startsWith("blob:")) URL.revokeObjectURL(imageUrl);
+    };
+  }, [imageUrl]);
+
   async function handleFile(file: File) {
-    setUploading(true);
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please choose an image file");
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error("Image is too large to analyze");
+      return;
+    }
+
+    const previewUrl = URL.createObjectURL(file);
+    setImageUrl((current) => {
+      if (current?.startsWith("blob:")) URL.revokeObjectURL(current);
+      return previewUrl;
+    });
+    setStep("photo");
+    setAnalyzing(true);
+
     try {
-      const url = await uploadProductLabel(file);
-      setImageUrl(url);
-      setStep("photo");
-      setAnalyzing(true);
-      try {
-        const extracted = await extractFn({ data: { imageUrl: url } });
-        if (extracted) {
-          setInitial({
-            ...emptyForm(),
-            name: extracted.name ?? "",
-            brand: extracted.brand ?? "",
-            calories_per_100g: extracted.calories_per_100g ?? 0,
-            protein_per_100g: extracted.protein_per_100g ?? 0,
-            carbs_per_100g: extracted.carbs_per_100g ?? 0,
-            fat_per_100g: extracted.fat_per_100g ?? 0,
-          });
-          toast.success("Nutrition extracted — review and save");
-        } else {
-          toast.message("Couldn't read the label — fill in manually");
-        }
-      } catch (e: any) {
-        toast.error(e.message ?? "Vision analysis failed");
-      } finally {
-        setAnalyzing(false);
+      const image = await fileToBase64Image(file);
+      const extracted = await extractFn({ data: { image } });
+      if (extracted) {
+        setInitial({
+          ...emptyForm(),
+          name: extracted.name ?? "",
+          brand: extracted.brand ?? "",
+          calories_per_100g: extracted.calories_per_100g ?? 0,
+          protein_per_100g: extracted.protein_per_100g ?? 0,
+          carbs_per_100g: extracted.carbs_per_100g ?? 0,
+          fat_per_100g: extracted.fat_per_100g ?? 0,
+          notes: extracted.notes ?? "",
+        });
+        toast.success("Nutrition extracted - review and save");
+      } else {
+        toast.message("Couldn't read the label - fill in manually");
       }
     } catch (e: any) {
-      toast.error(e.message ?? "Upload failed");
+      toast.error(e.message ?? "Vision analysis failed");
     } finally {
-      setUploading(false);
+      setAnalyzing(false);
     }
   }
 
@@ -69,7 +83,7 @@ function NewProductPage() {
         carbs_per_100g: values.carbs_per_100g,
         fat_per_100g: values.fat_per_100g,
         source_type: sourceType,
-        source_image_url: sourceType === "photo" ? imageUrl : null,
+        source_image_url: null,
         notes: values.notes.trim() || null,
       });
       toast.success("Product saved");
@@ -98,15 +112,15 @@ function NewProductPage() {
 
           <button
             onClick={() => fileRef.current?.click()}
-            disabled={uploading}
+            disabled={analyzing}
             className="w-full rounded-2xl border border-border bg-card p-5 text-left flex gap-4 items-center hover:border-primary/50 disabled:opacity-60"
           >
             <div className="h-12 w-12 rounded-xl bg-gradient-primary flex items-center justify-center shadow-glow">
               <Camera className="h-5 w-5 text-primary-foreground" />
             </div>
             <div>
-              <p className="font-semibold">{uploading ? "Uploading…" : "Take or upload photo"}</p>
-              <p className="text-xs text-muted-foreground">Save the label image, then fill values.</p>
+              <p className="font-semibold">{analyzing ? "Analyzing..." : "Take or upload photo"}</p>
+              <p className="text-xs text-muted-foreground">Use the label image to fill values.</p>
             </div>
           </button>
 
@@ -147,4 +161,19 @@ function NewProductPage() {
       )}
     </AppShell>
   );
+}
+
+async function fileToBase64Image(file: File) {
+  const dataUrl = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(new Error("Could not read image file"));
+    reader.readAsDataURL(file);
+  });
+
+  const [, data = ""] = dataUrl.split(",");
+  return {
+    mimeType: file.type || "image/jpeg",
+    data,
+  };
 }
