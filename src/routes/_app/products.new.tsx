@@ -1,10 +1,11 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useRef, useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
 import { AppShell } from "@/components/AppShell";
 import { ProductForm, emptyForm } from "@/components/ProductForm";
 import { createProduct, uploadProductLabel } from "@/lib/supabaseQueries";
-import { extractNutritionFromImage } from "@/lib/vision/extractNutritionFromImage";
-import { Camera, Pencil } from "lucide-react";
+import { extractNutritionFromImage } from "@/lib/vision/extractNutrition.functions";
+import { Camera, Pencil, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/products/new")({
@@ -18,28 +19,39 @@ function NewProductPage() {
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [initial, setInitial] = useState(emptyForm());
   const [uploading, setUploading] = useState(false);
+  const [analyzing, setAnalyzing] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const nav = useNavigate();
+  const extractFn = useServerFn(extractNutritionFromImage);
 
   async function handleFile(file: File) {
     setUploading(true);
     try {
       const url = await uploadProductLabel(file);
       setImageUrl(url);
-      // Try future vision extraction (currently null)
-      const extracted = await extractNutritionFromImage(url);
-      if (extracted) {
-        setInitial({
-          ...emptyForm(),
-          name: extracted.name ?? "",
-          brand: extracted.brand ?? "",
-          calories_per_100g: extracted.calories_per_100g ?? 0,
-          protein_per_100g: extracted.protein_per_100g ?? 0,
-          carbs_per_100g: extracted.carbs_per_100g ?? 0,
-          fat_per_100g: extracted.fat_per_100g ?? 0,
-        });
-      }
       setStep("photo");
+      setAnalyzing(true);
+      try {
+        const extracted = await extractFn({ data: { imageUrl: url } });
+        if (extracted) {
+          setInitial({
+            ...emptyForm(),
+            name: extracted.name ?? "",
+            brand: extracted.brand ?? "",
+            calories_per_100g: extracted.calories_per_100g ?? 0,
+            protein_per_100g: extracted.protein_per_100g ?? 0,
+            carbs_per_100g: extracted.carbs_per_100g ?? 0,
+            fat_per_100g: extracted.fat_per_100g ?? 0,
+          });
+          toast.success("Nutrition extracted — review and save");
+        } else {
+          toast.message("Couldn't read the label — fill in manually");
+        }
+      } catch (e: any) {
+        toast.error(e.message ?? "Vision analysis failed");
+      } finally {
+        setAnalyzing(false);
+      }
     } catch (e: any) {
       toast.error(e.message ?? "Upload failed");
     } finally {
@@ -117,12 +129,21 @@ function NewProductPage() {
       )}
 
       {step === "photo" && (
-        <ProductForm
-          initial={initial}
-          imagePreviewUrl={imageUrl}
-          onSubmit={(v) => save(v, "photo")}
-          submitLabel="Save product"
-        />
+        <div className="space-y-4">
+          {analyzing && (
+            <div className="flex items-center gap-3 rounded-2xl border border-border bg-card p-4">
+              <Loader2 className="h-5 w-5 animate-spin text-primary" />
+              <p className="text-sm">Reading nutrition label…</p>
+            </div>
+          )}
+          <ProductForm
+            key={analyzing ? "analyzing" : "ready"}
+            initial={initial}
+            imagePreviewUrl={imageUrl}
+            onSubmit={(v) => save(v, "photo")}
+            submitLabel="Save product"
+          />
+        </div>
       )}
     </AppShell>
   );
