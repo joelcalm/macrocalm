@@ -6,11 +6,13 @@ import { MacroSummaryCard } from "@/components/MacroSummaryCard";
 import { QuantityInput } from "@/components/QuantityInput";
 import { Sheet } from "@/components/Sheet";
 import { ProductPicker } from "@/components/ProductPicker";
+import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
 import {
   addDailyLogItem,
   addMealTemplateToLog,
   deleteDailyLogItem,
   getMealTemplate,
+  listWeightLogs,
   listDailyLogItems,
   listMealTemplates,
   updateDailyLogItem,
@@ -18,9 +20,11 @@ import {
   type MealTemplate,
   type MealTemplateItem,
   type Product,
+  type WeightLog,
 } from "@/lib/supabaseQueries";
 import { computeMacros, fmtCal, fmtMacro, sumMacros } from "@/lib/nutrition";
-import { Apple, Plus, Trash2, UtensilsCrossed } from "lucide-react";
+import { Apple, Plus, Scale, Trash2, UtensilsCrossed } from "lucide-react";
+import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/log")({
@@ -28,12 +32,25 @@ export const Route = createFileRoute("/_app/log")({
 });
 
 type AddMode = "none" | "choose" | "product" | "productQty" | "meal" | "mealConfirm";
+type WeightRangePreset = "week" | "month" | "custom";
+
+const weightChartConfig = {
+  weight: {
+    label: "Weight",
+    color: "hsl(var(--primary))",
+  },
+} satisfies ChartConfig;
 
 function LogPage() {
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [items, setItems] = useState<DailyLogItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [addMode, setAddMode] = useState<AddMode>("none");
+  const [weightPreset, setWeightPreset] = useState<WeightRangePreset>("week");
+  const [weightStartDate, setWeightStartDate] = useState(() => daysAgo(6));
+  const [weightEndDate, setWeightEndDate] = useState(() => todayString());
+  const [weightLogs, setWeightLogs] = useState<WeightLog[]>([]);
+  const [weightLoading, setWeightLoading] = useState(true);
 
   const [pickedProduct, setPickedProduct] = useState<Product | null>(null);
   const [pickedQty, setPickedQty] = useState(100);
@@ -52,6 +69,14 @@ function LogPage() {
   useEffect(() => {
     refresh();
   }, [date]);
+
+  useEffect(() => {
+    setWeightLoading(true);
+    listWeightLogs(weightStartDate, weightEndDate)
+      .then(setWeightLogs)
+      .catch((e) => toast.error(e.message ?? "Could not load weight logs"))
+      .finally(() => setWeightLoading(false));
+  }, [weightStartDate, weightEndDate]);
 
   const totals = sumMacros(
     items.map((i) => (i.product ? computeMacros(i.product, i.quantity_g) : { calories: 0, protein: 0, carbs: 0, fat: 0 })),
@@ -114,6 +139,24 @@ function LogPage() {
     ),
   );
 
+  function setWeightRange(preset: WeightRangePreset) {
+    setWeightPreset(preset);
+    if (preset === "week") {
+      setWeightStartDate(daysAgo(6));
+      setWeightEndDate(todayString());
+    }
+    if (preset === "month") {
+      setWeightStartDate(daysAgo(29));
+      setWeightEndDate(todayString());
+    }
+  }
+
+  const weightChartData = weightLogs.map((log) => ({
+    date: log.date,
+    label: formatShortDate(log.date),
+    weight: Number(log.weight_kg),
+  }));
+
   return (
     <AppShell title="Log">
       <DateSelector value={date} onChange={setDate} />
@@ -136,6 +179,107 @@ function LogPage() {
           <UtensilsCrossed className="h-5 w-5" />
           <span className="font-semibold text-sm">Add meal</span>
         </button>
+      </div>
+
+      <div className="mt-6 rounded-2xl border border-border bg-card p-4">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-2">
+              <Scale className="h-4 w-4 text-primary" />
+              <h2 className="font-semibold">Weight progression</h2>
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">Track your weight across time.</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-3 gap-2 mt-4">
+          <button
+            onClick={() => setWeightRange("week")}
+            className={rangeButtonClass(weightPreset === "week")}
+          >
+            Last week
+          </button>
+          <button
+            onClick={() => setWeightRange("month")}
+            className={rangeButtonClass(weightPreset === "month")}
+          >
+            Last month
+          </button>
+          <button
+            onClick={() => setWeightPreset("custom")}
+            className={rangeButtonClass(weightPreset === "custom")}
+          >
+            Custom
+          </button>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3 mt-3">
+          <DateField
+            label="Start"
+            value={weightStartDate}
+            onChange={(value) => {
+              setWeightPreset("custom");
+              setWeightStartDate(value);
+            }}
+          />
+          <DateField
+            label="End"
+            value={weightEndDate}
+            onChange={(value) => {
+              setWeightPreset("custom");
+              setWeightEndDate(value);
+            }}
+          />
+        </div>
+
+        <div className="mt-4">
+          {weightLoading ? (
+            <p className="text-sm text-muted-foreground py-10 text-center">Loading weight data…</p>
+          ) : weightChartData.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-10 text-center">No weight logged in this range.</p>
+          ) : (
+            <ChartContainer config={weightChartConfig} className="h-52 w-full">
+              <LineChart data={weightChartData} margin={{ left: 0, right: 8, top: 12, bottom: 0 }}>
+                <CartesianGrid vertical={false} />
+                <XAxis
+                  dataKey="label"
+                  tickLine={false}
+                  axisLine={false}
+                  tickMargin={8}
+                  minTickGap={16}
+                />
+                <YAxis
+                  width={36}
+                  tickLine={false}
+                  axisLine={false}
+                  tickMargin={8}
+                  domain={["dataMin - 1", "dataMax + 1"]}
+                />
+                <ChartTooltip
+                  cursor={false}
+                  content={
+                    <ChartTooltipContent
+                      formatter={(value) => (
+                        <span className="font-mono font-medium tabular-nums text-foreground">
+                          {Number(value).toFixed(1)} kg
+                        </span>
+                      )}
+                      labelFormatter={(_, payload) => payload?.[0]?.payload?.date ?? ""}
+                    />
+                  }
+                />
+                <Line
+                  dataKey="weight"
+                  type="monotone"
+                  stroke="var(--color-weight)"
+                  strokeWidth={2}
+                  dot={{ r: 3 }}
+                  activeDot={{ r: 5 }}
+                />
+              </LineChart>
+            </ChartContainer>
+          )}
+        </div>
       </div>
 
       <div className="mt-6 space-y-4">
@@ -254,4 +398,50 @@ function LogPage() {
       </Sheet>
     </AppShell>
   );
+}
+
+function DateField({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <label className="block">
+      <span className="block text-xs text-muted-foreground mb-1.5 ml-1">{label}</span>
+      <input
+        type="date"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full h-11 rounded-xl bg-input px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+      />
+    </label>
+  );
+}
+
+function rangeButtonClass(active: boolean) {
+  return [
+    "h-10 rounded-xl text-sm font-medium transition-colors",
+    active ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground hover:text-foreground",
+  ].join(" ");
+}
+
+function todayString() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function daysAgo(days: number) {
+  const date = new Date();
+  date.setDate(date.getDate() - days);
+  return date.toISOString().slice(0, 10);
+}
+
+function formatShortDate(value: string) {
+  return new Date(`${value}T00:00:00`).toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+  });
 }

@@ -115,6 +115,20 @@ Important fields:
 - `meal_template_id`
 - `meal_name`
 
+### weight_logs
+
+One body-weight entry per user/date.
+
+Important fields:
+
+- `id`
+- `user_id`
+- `date`
+- `weight_kg`
+- `notes`
+- `created_at`
+- `updated_at`
+
 ## Existing Structure
 
 Important files:
@@ -140,7 +154,7 @@ Important files:
 
 - `src/lib/supabaseQueries.ts`
   - Central Supabase database queries.
-  - Includes product CRUD, meal templates, and daily logs.
+  - Includes product CRUD, meal templates, daily logs, and weight logs.
   - Has an older `uploadProductLabel` helper, but the current product photo flow does not use it.
 
 - `src/components/ProductForm.tsx`

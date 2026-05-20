@@ -1,13 +1,15 @@
 import { useState } from "react";
 import type { Product } from "@/lib/supabaseQueries";
 
+type NumericFormValue = number | "";
+
 export type ProductFormValues = {
   name: string;
   brand: string;
-  calories_per_100g: number;
-  protein_per_100g: number;
-  carbs_per_100g: number;
-  fat_per_100g: number;
+  calories_per_100g: NumericFormValue;
+  protein_per_100g: NumericFormValue;
+  carbs_per_100g: NumericFormValue;
+  fat_per_100g: NumericFormValue;
   notes: string;
 };
 
@@ -15,10 +17,10 @@ export function emptyForm(): ProductFormValues {
   return {
     name: "",
     brand: "",
-    calories_per_100g: 0,
-    protein_per_100g: 0,
-    carbs_per_100g: 0,
-    fat_per_100g: 0,
+    calories_per_100g: "",
+    protein_per_100g: "",
+    carbs_per_100g: "",
+    fat_per_100g: "",
     notes: "",
   };
 }
@@ -59,7 +61,7 @@ export function ProductForm({
         if (!v.name.trim()) return;
         setBusy(true);
         try {
-          await onSubmit(v);
+          await onSubmit(normalizeFormValues(v));
         } finally {
           setBusy(false);
         }
@@ -134,8 +136,8 @@ function NumField({
   unit,
 }: {
   label: string;
-  value: number;
-  onChange: (n: number) => void;
+  value: NumericFormValue;
+  onChange: (n: NumericFormValue) => void;
   unit: string;
 }) {
   return (
@@ -147,12 +149,29 @@ function NumField({
           inputMode="decimal"
           step="any"
           min={0}
-          value={Number.isFinite(value) ? value : 0}
-          onChange={(e) => onChange(Number(e.target.value) || 0)}
+          value={value}
+          onChange={(e) => {
+            const next = e.target.value;
+            onChange(next === "" ? "" : Number(next));
+          }}
           className="w-full h-12 rounded-xl bg-input px-4 pr-12 text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
         />
         <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">{unit}</span>
       </div>
     </div>
   );
+}
+
+function normalizeFormValues(v: ProductFormValues): ProductFormValues {
+  return {
+    ...v,
+    calories_per_100g: numberOrZero(v.calories_per_100g),
+    protein_per_100g: numberOrZero(v.protein_per_100g),
+    carbs_per_100g: numberOrZero(v.carbs_per_100g),
+    fat_per_100g: numberOrZero(v.fat_per_100g),
+  };
+}
+
+function numberOrZero(value: NumericFormValue) {
+  return typeof value === "number" && Number.isFinite(value) ? value : 0;
 }

@@ -40,6 +40,7 @@ function SettingsPage() {
       dump("meal_template_items", data.meal_template_items as any[]);
       dump("daily_logs", data.daily_logs as any[]);
       dump("daily_log_items", data.daily_log_items as any[]);
+      dump("weight_logs", data.weight_logs as any[]);
       downloadFile(`macro-export-${Date.now()}.csv`, rows.join("\n"), "text/csv");
     } catch (e: any) {
       toast.error(e.message);

@@ -49,6 +49,16 @@ export type DailyLogItem = {
   product?: Product;
 };
 
+export type WeightLog = {
+  id: string;
+  user_id: string;
+  date: string;
+  weight_kg: number;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 /* ---------------- products ---------------- */
 
 export async function listProducts(): Promise<Product[]> {
@@ -257,15 +267,69 @@ export async function deleteDailyLogItem(id: string) {
   if (error) throw error;
 }
 
+/* ---------------- weight logs ---------------- */
+
+export async function getWeightLog(date: string): Promise<WeightLog | null> {
+  const { data: u } = await supabase.auth.getUser();
+  if (!u.user) throw new Error("Not signed in");
+  const { data, error } = await supabase
+    .from("weight_logs")
+    .select("*")
+    .eq("user_id", u.user.id)
+    .eq("date", date)
+    .maybeSingle();
+  if (error) throw error;
+  return data as WeightLog | null;
+}
+
+export async function upsertWeightLog(input: {
+  date: string;
+  weight_kg: number;
+  notes?: string | null;
+}): Promise<WeightLog> {
+  const { data: u } = await supabase.auth.getUser();
+  if (!u.user) throw new Error("Not signed in");
+  const { data, error } = await supabase
+    .from("weight_logs")
+    .upsert(
+      {
+        user_id: u.user.id,
+        date: input.date,
+        weight_kg: input.weight_kg,
+        notes: input.notes ?? null,
+      },
+      { onConflict: "user_id,date" },
+    )
+    .select("*")
+    .single();
+  if (error) throw error;
+  return data as WeightLog;
+}
+
+export async function listWeightLogs(startDate: string, endDate: string): Promise<WeightLog[]> {
+  const { data: u } = await supabase.auth.getUser();
+  if (!u.user) throw new Error("Not signed in");
+  const { data, error } = await supabase
+    .from("weight_logs")
+    .select("*")
+    .eq("user_id", u.user.id)
+    .gte("date", startDate)
+    .lte("date", endDate)
+    .order("date", { ascending: true });
+  if (error) throw error;
+  return (data ?? []) as WeightLog[];
+}
+
 /* ---------------- export ---------------- */
 
 export async function exportAllData() {
-  const [products, templates, items, logs, logItems] = await Promise.all([
+  const [products, templates, items, logs, logItems, weightLogs] = await Promise.all([
     supabase.from("products").select("*"),
     supabase.from("meal_templates").select("*"),
     supabase.from("meal_template_items").select("*"),
     supabase.from("daily_logs").select("*"),
     supabase.from("daily_log_items").select("*"),
+    supabase.from("weight_logs").select("*"),
   ]);
   return {
     products: products.data,
@@ -273,6 +337,7 @@ export async function exportAllData() {
     meal_template_items: items.data,
     daily_logs: logs.data,
     daily_log_items: logItems.data,
+    weight_logs: weightLogs.data,
     exported_at: new Date().toISOString(),
   };
 }

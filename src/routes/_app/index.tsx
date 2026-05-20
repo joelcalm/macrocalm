@@ -2,9 +2,17 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { MacroSummaryCard } from "@/components/MacroSummaryCard";
-import { listDailyLogItems, type DailyLogItem } from "@/lib/supabaseQueries";
+import { Sheet } from "@/components/Sheet";
+import {
+  getWeightLog,
+  listDailyLogItems,
+  upsertWeightLog,
+  type DailyLogItem,
+  type WeightLog,
+} from "@/lib/supabaseQueries";
 import { computeMacros, sumMacros, fmtCal, fmtMacro } from "@/lib/nutrition";
-import { Plus, UtensilsCrossed } from "lucide-react";
+import { Plus, Scale, UtensilsCrossed } from "lucide-react";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/")({
   component: Dashboard,
@@ -13,11 +21,16 @@ export const Route = createFileRoute("/_app/")({
 function Dashboard() {
   const today = new Date().toISOString().slice(0, 10);
   const [items, setItems] = useState<DailyLogItem[]>([]);
+  const [weightLog, setWeightLog] = useState<WeightLog | null>(null);
+  const [weightOpen, setWeightOpen] = useState(false);
+  const [weightInput, setWeightInput] = useState("");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    listDailyLogItems(today).then((d) => {
-      setItems(d);
+    Promise.all([listDailyLogItems(today), getWeightLog(today)]).then(([dailyItems, weight]) => {
+      setItems(dailyItems);
+      setWeightLog(weight);
+      setWeightInput(weight ? String(Number(weight.weight_kg)) : "");
       setLoading(false);
     });
   }, [today]);
@@ -31,6 +44,20 @@ function Dashboard() {
   for (const i of items) {
     const k = i.meal_name ?? "Individual items";
     (grouped[k] ??= []).push(i);
+  }
+
+  async function saveWeight() {
+    const weight = Number(weightInput);
+    if (!Number.isFinite(weight) || weight <= 0) {
+      toast.error("Enter a valid weight");
+      return;
+    }
+
+    const saved = await upsertWeightLog({ date: today, weight_kg: weight });
+    setWeightLog(saved);
+    setWeightInput(String(Number(saved.weight_kg)));
+    setWeightOpen(false);
+    toast.success("Weight logged");
   }
 
   return (
@@ -52,6 +79,26 @@ function Dashboard() {
           <Plus className="h-5 w-5 text-primary" />
           Add product
         </Link>
+        <button
+          onClick={() => {
+            setWeightInput(weightLog ? String(Number(weightLog.weight_kg)) : "");
+            setWeightOpen(true);
+          }}
+          className="col-span-2 rounded-2xl border border-border bg-card p-4 text-left flex items-center justify-between gap-3"
+        >
+          <span className="flex items-center gap-3">
+            <span className="h-10 w-10 rounded-xl bg-secondary flex items-center justify-center">
+              <Scale className="h-5 w-5 text-primary" />
+            </span>
+            <span>
+              <span className="block font-semibold">{weightLog ? "Update weight" : "Log weight"}</span>
+              <span className="block text-xs text-muted-foreground">
+                {weightLog ? `${Number(weightLog.weight_kg).toFixed(1)} kg today` : "Track body-weight progress"}
+              </span>
+            </span>
+          </span>
+          <Plus className="h-4 w-4 text-muted-foreground" />
+        </button>
       </div>
 
       <div className="mt-6">
@@ -94,6 +141,33 @@ function Dashboard() {
           </div>
         )}
       </div>
+
+      <Sheet open={weightOpen} onClose={() => setWeightOpen(false)} title="Log weight">
+        <div className="space-y-4">
+          <div>
+            <label className="block text-xs text-muted-foreground mb-1.5 ml-1">Weight</label>
+            <div className="relative">
+              <input
+                type="number"
+                inputMode="decimal"
+                step="0.1"
+                min={0}
+                value={weightInput}
+                onChange={(e) => setWeightInput(e.target.value)}
+                className="w-full h-12 rounded-xl bg-input px-4 pr-12 text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                placeholder="e.g. 72.5"
+              />
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">kg</span>
+            </div>
+          </div>
+          <button
+            onClick={saveWeight}
+            className="w-full h-12 rounded-xl bg-gradient-primary text-primary-foreground font-semibold shadow-glow"
+          >
+            Save weight
+          </button>
+        </div>
+      </Sheet>
     </AppShell>
   );
 }
