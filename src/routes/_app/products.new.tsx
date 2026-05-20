@@ -129,12 +129,21 @@ function NewProductPage() {
       )}
 
       {step === "photo" && (
-        <ProductForm
-          initial={initial}
-          imagePreviewUrl={imageUrl}
-          onSubmit={(v) => save(v, "photo")}
-          submitLabel="Save product"
-        />
+        <div className="space-y-4">
+          {analyzing && (
+            <div className="flex items-center gap-3 rounded-2xl border border-border bg-card p-4">
+              <Loader2 className="h-5 w-5 animate-spin text-primary" />
+              <p className="text-sm">Reading nutrition label…</p>
+            </div>
+          )}
+          <ProductForm
+            key={analyzing ? "analyzing" : "ready"}
+            initial={initial}
+            imagePreviewUrl={imageUrl}
+            onSubmit={(v) => save(v, "photo")}
+            submitLabel="Save product"
+          />
+        </div>
       )}
     </AppShell>
   );
