@@ -213,7 +213,7 @@ function LogPage() {
           </button>
         </div>
 
-        <div className="grid grid-cols-2 gap-3 mt-3">
+        <div className="grid grid-cols-2 gap-2 mt-3">
           <DateField
             label="Start"
             value={weightStartDate}
@@ -239,7 +239,7 @@ function LogPage() {
             <p className="text-sm text-muted-foreground py-10 text-center">No weight logged in this range.</p>
           ) : (
             <ChartContainer config={weightChartConfig} className="h-52 w-full">
-              <LineChart data={weightChartData} margin={{ left: 0, right: 8, top: 12, bottom: 0 }}>
+              <LineChart data={weightChartData} margin={{ left: 8, right: 8, top: 12, bottom: 0 }}>
                 <CartesianGrid vertical={false} />
                 <XAxis
                   dataKey="label"
@@ -249,7 +249,7 @@ function LogPage() {
                   minTickGap={16}
                 />
                 <YAxis
-                  width={36}
+                  width={44}
                   tickLine={false}
                   axisLine={false}
                   tickMargin={8}
@@ -271,10 +271,13 @@ function LogPage() {
                 <Line
                   dataKey="weight"
                   type="monotone"
-                  stroke="var(--color-weight)"
-                  strokeWidth={2}
-                  dot={{ r: 3 }}
-                  activeDot={{ r: 5 }}
+                  connectNulls
+                  stroke="#fff"
+                  strokeWidth={2.5}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  dot={{ r: 3.5, fill: "#fff", stroke: "#fff" }}
+                  activeDot={{ r: 5, fill: "#fff", stroke: "#fff" }}
                 />
               </LineChart>
             </ChartContainer>
@@ -410,13 +413,13 @@ function DateField({
   onChange: (value: string) => void;
 }) {
   return (
-    <label className="block">
+    <label className="block min-w-0">
       <span className="block text-xs text-muted-foreground mb-1.5 ml-1">{label}</span>
       <input
         type="date"
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full h-11 rounded-xl bg-input px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+        className="w-full min-w-0 h-10 rounded-xl bg-input px-2 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring sm:h-11 sm:px-3 sm:text-sm"
       />
     </label>
   );
