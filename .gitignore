@@ -14,6 +14,7 @@ dist-ssr
 .vinxi
 .tanstack/**
 .nitro
+.vercel/
 *.local
 
 # Wrangler / Cloudflare
@@ -43,3 +44,7 @@ supabase/functions/.env.*
 .env.local
 .env.*.local
 !.env.example
+
+# Internal notes
+context.md
+vision-setup.md
