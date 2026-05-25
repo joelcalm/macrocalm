@@ -47,7 +47,8 @@ function Dashboard() {
   }
 
   async function saveWeight() {
-    const weight = Number(weightInput);
+    const normalizedInput = weightInput.trim().replace(",", ".");
+    const weight = Number(normalizedInput);
     if (!Number.isFinite(weight) || weight <= 0) {
       toast.error("Enter a valid weight");
       return;
@@ -148,10 +149,9 @@ function Dashboard() {
             <label className="block text-xs text-muted-foreground mb-1.5 ml-1">Weight</label>
             <div className="relative">
               <input
-                type="number"
+                type="text"
                 inputMode="decimal"
-                step="0.1"
-                min={0}
+                pattern="[0-9]*[.,]?[0-9]*"
                 value={weightInput}
                 onChange={(e) => setWeightInput(e.target.value)}
                 className="w-full h-12 rounded-xl bg-input px-4 pr-12 text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
