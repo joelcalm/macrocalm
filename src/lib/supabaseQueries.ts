@@ -1,10 +1,18 @@
 import { supabase } from "@/integrations/supabase/client";
+import type { ProductCategory } from "@/lib/productCategories";
+import { STARTER_PRODUCTS } from "@/lib/starterProducts";
+
+const STARTER_PRODUCT_BRAND = "Common foods";
+const STARTER_PRODUCT_NOTES = "Common raw food nutrition values per 100 g.";
+
+let starterProductsPromise: Promise<void> | null = null;
 
 export type Product = {
   id: string;
   user_id: string;
   name: string;
   brand: string | null;
+  category: ProductCategory;
   calories_per_100g: number;
   protein_per_100g: number;
   carbs_per_100g: number;
@@ -61,13 +69,93 @@ export type WeightLog = {
 
 /* ---------------- products ---------------- */
 
-export async function listProducts(): Promise<Product[]> {
-  const { data, error } = await supabase
+export async function listProducts(options?: {
+  category?: ProductCategory | "all";
+  ensureStarterProducts?: boolean;
+}): Promise<Product[]> {
+  if (options?.ensureStarterProducts) {
+    await ensureStarterProducts();
+  }
+
+  let query = supabase
     .from("products")
     .select("*")
-    .order("created_at", { ascending: false });
+    .order("category", { ascending: true })
+    .order("name", { ascending: true });
+
+  if (options?.category && options.category !== "all") {
+    query = query.eq("category", options.category);
+  }
+
+  const { data, error } = await query;
   if (error) throw error;
-  return (data ?? []) as Product[];
+  return dedupeStarterProducts((data ?? []) as Product[]);
+}
+
+export async function ensureStarterProducts(): Promise<void> {
+  if (starterProductsPromise) return starterProductsPromise;
+
+  starterProductsPromise = insertMissingStarterProducts().finally(() => {
+    starterProductsPromise = null;
+  });
+
+  return starterProductsPromise;
+}
+
+async function insertMissingStarterProducts(): Promise<void> {
+  const { data: u } = await supabase.auth.getUser();
+  if (!u.user) throw new Error("Not signed in");
+
+  const { data: existing, error } = await supabase.from("products").select("name, category");
+  if (error) throw error;
+
+  const existingKeys = new Set(
+    (existing ?? []).map((p) => starterProductKey(p.name, p.category as ProductCategory)),
+  );
+  const missing = STARTER_PRODUCTS.filter(
+    (p) => !existingKeys.has(starterProductKey(p.name, p.category)),
+  );
+
+  if (!missing.length) return;
+
+  const { error: insertError } = await supabase.from("products").insert(
+    missing.map((p) => ({
+      ...p,
+      user_id: u.user.id,
+      brand: STARTER_PRODUCT_BRAND,
+      source_type: "manual",
+      source_image_url: null,
+      notes: STARTER_PRODUCT_NOTES,
+    })),
+  );
+  if (insertError && insertError.code === "23505") return;
+  if (insertError) throw insertError;
+}
+
+function dedupeStarterProducts(products: Product[]) {
+  const seenStarterKeys = new Set<string>();
+
+  return products.filter((product) => {
+    if (!isStarterProduct(product)) return true;
+
+    const key = starterProductKey(product.name, product.category);
+    if (seenStarterKeys.has(key)) return false;
+
+    seenStarterKeys.add(key);
+    return true;
+  });
+}
+
+function isStarterProduct(product: Product) {
+  return (
+    product.brand === STARTER_PRODUCT_BRAND &&
+    product.source_type === "manual" &&
+    product.notes === STARTER_PRODUCT_NOTES
+  );
+}
+
+function starterProductKey(name: string, category: ProductCategory) {
+  return `${category}:${name.trim().toLowerCase()}`;
 }
 
 export async function getProduct(id: string): Promise<Product | null> {
@@ -118,7 +206,9 @@ export async function uploadProductLabel(file: File): Promise<string> {
     upsert: false,
   });
   if (error) throw error;
-  const { data } = await supabase.storage.from("product-labels").createSignedUrl(path, 60 * 60 * 24 * 365);
+  const { data } = await supabase.storage
+    .from("product-labels")
+    .createSignedUrl(path, 60 * 60 * 24 * 365);
   return data?.signedUrl ?? path;
 }
 
@@ -171,6 +261,34 @@ export async function createMealTemplate(
     if (e2) throw e2;
   }
   return tpl as MealTemplate;
+}
+
+export async function updateMealTemplate(
+  id: string,
+  patch: Pick<Partial<MealTemplate>, "name" | "description">,
+): Promise<MealTemplate> {
+  const { data, error } = await supabase
+    .from("meal_templates")
+    .update(patch)
+    .eq("id", id)
+    .select("*")
+    .single();
+  if (error) throw error;
+  return data as MealTemplate;
+}
+
+export async function addMealTemplateItem(
+  meal_template_id: string,
+  product_id: string,
+  default_quantity_g = 100,
+): Promise<MealTemplateItem> {
+  const { data, error } = await supabase
+    .from("meal_template_items")
+    .insert({ meal_template_id, product_id, default_quantity_g })
+    .select("*, product:products(*)")
+    .single();
+  if (error) throw error;
+  return data as MealTemplateItem;
 }
 
 export async function updateMealTemplateItem(id: string, default_quantity_g: number) {
@@ -242,7 +360,11 @@ export async function addDailyLogItem(input: {
   if (error) throw error;
 }
 
-export async function addMealTemplateToLog(date: string, templateId: string, overrides: { product_id: string; quantity_g: number }[]) {
+export async function addMealTemplateToLog(
+  date: string,
+  templateId: string,
+  overrides: { product_id: string; quantity_g: number }[],
+) {
   const tpl = await getMealTemplate(templateId);
   if (!tpl) throw new Error("Template not found");
   const log = await getOrCreateDailyLog(date);

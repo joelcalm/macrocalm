@@ -1,4 +1,9 @@
 import { useState } from "react";
+import {
+  PRODUCT_CATEGORIES,
+  PRODUCT_CATEGORY_LABELS,
+  type ProductCategory,
+} from "@/lib/productCategories";
 import type { Product } from "@/lib/supabaseQueries";
 
 type NumericFormValue = number | "";
@@ -6,6 +11,7 @@ type NumericFormValue = number | "";
 export type ProductFormValues = {
   name: string;
   brand: string;
+  category: ProductCategory;
   calories_per_100g: NumericFormValue;
   protein_per_100g: NumericFormValue;
   carbs_per_100g: NumericFormValue;
@@ -17,6 +23,7 @@ export function emptyForm(): ProductFormValues {
   return {
     name: "",
     brand: "",
+    category: "other",
     calories_per_100g: "",
     protein_per_100g: "",
     carbs_per_100g: "",
@@ -29,6 +36,7 @@ export function fromProduct(p: Product): ProductFormValues {
   return {
     name: p.name,
     brand: p.brand ?? "",
+    category: p.category ?? "other",
     calories_per_100g: Number(p.calories_per_100g),
     protein_per_100g: Number(p.protein_per_100g),
     carbs_per_100g: Number(p.carbs_per_100g),
@@ -95,13 +103,48 @@ export function ProductForm({
         />
       </div>
 
+      <div>
+        <Label>Category</Label>
+        <select
+          className={field}
+          value={v.category}
+          onChange={(e) => setV({ ...v, category: e.target.value as ProductCategory })}
+        >
+          {PRODUCT_CATEGORIES.map((category) => (
+            <option key={category} value={category}>
+              {PRODUCT_CATEGORY_LABELS[category]}
+            </option>
+          ))}
+        </select>
+      </div>
+
       <p className="text-xs text-muted-foreground uppercase tracking-wider pt-2">Per 100g</p>
 
       <div className="grid grid-cols-2 gap-3">
-        <NumField label="Calories" value={v.calories_per_100g} onChange={(n) => setV({ ...v, calories_per_100g: n })} unit="kcal" />
-        <NumField label="Protein" value={v.protein_per_100g} onChange={(n) => setV({ ...v, protein_per_100g: n })} unit="g" />
-        <NumField label="Carbs" value={v.carbs_per_100g} onChange={(n) => setV({ ...v, carbs_per_100g: n })} unit="g" />
-        <NumField label="Fat" value={v.fat_per_100g} onChange={(n) => setV({ ...v, fat_per_100g: n })} unit="g" />
+        <NumField
+          label="Calories"
+          value={v.calories_per_100g}
+          onChange={(n) => setV({ ...v, calories_per_100g: n })}
+          unit="kcal"
+        />
+        <NumField
+          label="Protein"
+          value={v.protein_per_100g}
+          onChange={(n) => setV({ ...v, protein_per_100g: n })}
+          unit="g"
+        />
+        <NumField
+          label="Carbs"
+          value={v.carbs_per_100g}
+          onChange={(n) => setV({ ...v, carbs_per_100g: n })}
+          unit="g"
+        />
+        <NumField
+          label="Fat"
+          value={v.fat_per_100g}
+          onChange={(n) => setV({ ...v, fat_per_100g: n })}
+          unit="g"
+        />
       </div>
 
       <div>
@@ -156,7 +199,9 @@ function NumField({
           }}
           className="w-full h-12 rounded-xl bg-input px-4 pr-12 text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
         />
-        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">{unit}</span>
+        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+          {unit}
+        </span>
       </div>
     </div>
   );

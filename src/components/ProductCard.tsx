@@ -1,4 +1,5 @@
 import type { Product } from "@/lib/supabaseQueries";
+import { PRODUCT_CATEGORY_LABELS } from "@/lib/productCategories";
 import { fmtCal, fmtMacro } from "@/lib/nutrition";
 import { Link } from "@tanstack/react-router";
 
@@ -11,7 +12,11 @@ export function ProductCard({ product }: { product: Product }) {
     >
       <div className="h-16 w-16 shrink-0 rounded-xl overflow-hidden bg-secondary flex items-center justify-center">
         {product.source_image_url ? (
-          <img src={product.source_image_url} alt={product.name} className="h-full w-full object-cover" />
+          <img
+            src={product.source_image_url}
+            alt={product.name}
+            className="h-full w-full object-cover"
+          />
         ) : (
           <span className="font-display text-xl font-bold text-primary">
             {product.name.charAt(0).toUpperCase()}
@@ -20,7 +25,9 @@ export function ProductCard({ product }: { product: Product }) {
       </div>
       <div className="min-w-0 flex-1">
         <p className="font-medium truncate">{product.name}</p>
-        {product.brand && <p className="text-xs text-muted-foreground truncate">{product.brand}</p>}
+        <p className="text-xs text-muted-foreground truncate">
+          {[product.brand, PRODUCT_CATEGORY_LABELS[product.category]].filter(Boolean).join(" · ")}
+        </p>
         <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
           <span className="text-primary font-medium">{fmtCal(product.calories_per_100g)} kcal</span>
           <span>P {fmtMacro(product.protein_per_100g)}</span>

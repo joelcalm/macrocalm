@@ -2,8 +2,9 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { AppShell } from "@/components/AppShell";
-import { ProductForm, emptyForm } from "@/components/ProductForm";
+import { ProductForm, emptyForm, type ProductFormValues } from "@/components/ProductForm";
 import { createProduct } from "@/lib/supabaseQueries";
+import { getErrorMessage } from "@/lib/utils";
 import { extractNutritionFromImage } from "@/lib/vision/extractNutrition.functions";
 import { Camera, Pencil, Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -60,24 +61,26 @@ function NewProductPage() {
           protein_per_100g: extracted.protein_per_100g ?? 0,
           carbs_per_100g: extracted.carbs_per_100g ?? 0,
           fat_per_100g: extracted.fat_per_100g ?? 0,
+          category: "other",
           notes: extracted.notes ?? "",
         });
         toast.success("Nutrition extracted - review and save");
       } else {
         toast.message("Couldn't read the label - fill in manually");
       }
-    } catch (e: any) {
-      toast.error(e.message ?? "Vision analysis failed");
+    } catch (e: unknown) {
+      toast.error(getErrorMessage(e, "Vision analysis failed"));
     } finally {
       setAnalyzing(false);
     }
   }
 
-  async function save(values: any, sourceType: "manual" | "photo") {
+  async function save(values: ProductFormValues, sourceType: "manual" | "photo") {
     try {
       await createProduct({
         name: values.name.trim(),
         brand: values.brand.trim() || null,
+        category: values.category,
         calories_per_100g: values.calories_per_100g,
         protein_per_100g: values.protein_per_100g,
         carbs_per_100g: values.carbs_per_100g,
@@ -88,8 +91,8 @@ function NewProductPage() {
       });
       toast.success("Product saved");
       nav({ to: "/products" });
-    } catch (e: any) {
-      toast.error(e.message ?? "Save failed");
+    } catch (e: unknown) {
+      toast.error(getErrorMessage(e, "Save failed"));
     }
   }
 

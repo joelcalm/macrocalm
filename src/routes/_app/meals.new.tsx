@@ -7,6 +7,7 @@ import { QuantityInput } from "@/components/QuantityInput";
 import { MacroSummaryCard } from "@/components/MacroSummaryCard";
 import { createMealTemplate, type Product } from "@/lib/supabaseQueries";
 import { computeMacros, sumMacros } from "@/lib/nutrition";
+import { getErrorMessage } from "@/lib/utils";
 import { Plus, X } from "lucide-react";
 import { toast } from "sonner";
 
@@ -33,15 +34,15 @@ function NewMeal() {
     }
     setBusy(true);
     try {
-      await createMealTemplate(
+      const meal = await createMealTemplate(
         name.trim(),
         description.trim() || null,
         rows.map((r) => ({ product_id: r.product.id, default_quantity_g: r.quantity_g })),
       );
       toast.success("Meal saved");
-      nav({ to: "/meals" });
-    } catch (e: any) {
-      toast.error(e.message);
+      nav({ to: "/meals/$mealId", params: { mealId: meal.id } });
+    } catch (e: unknown) {
+      toast.error(getErrorMessage(e));
     } finally {
       setBusy(false);
     }
@@ -78,7 +79,9 @@ function NewMeal() {
             </div>
             <QuantityInput
               value={r.quantity_g}
-              onChange={(v) => setRows(rows.map((x, i) => (i === idx ? { ...x, quantity_g: v } : x)))}
+              onChange={(v) =>
+                setRows(rows.map((x, i) => (i === idx ? { ...x, quantity_g: v } : x)))
+              }
             />
           </div>
         ))}

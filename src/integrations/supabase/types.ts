@@ -196,6 +196,7 @@ export type Database = {
         Row: {
           brand: string | null
           calories_per_100g: number
+          category: string
           carbs_per_100g: number
           created_at: string
           fat_per_100g: number
@@ -211,6 +212,7 @@ export type Database = {
         Insert: {
           brand?: string | null
           calories_per_100g?: number
+          category?: string
           carbs_per_100g?: number
           created_at?: string
           fat_per_100g?: number
@@ -226,6 +228,7 @@ export type Database = {
         Update: {
           brand?: string | null
           calories_per_100g?: number
+          category?: string
           carbs_per_100g?: number
           created_at?: string
           fat_per_100g?: number

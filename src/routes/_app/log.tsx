@@ -1,21 +1,28 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { DateSelector } from "@/components/DateSelector";
 import { MacroSummaryCard } from "@/components/MacroSummaryCard";
 import { QuantityInput } from "@/components/QuantityInput";
 import { Sheet } from "@/components/Sheet";
 import { ProductPicker } from "@/components/ProductPicker";
-import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  type ChartConfig,
+} from "@/components/ui/chart";
 import {
   addDailyLogItem,
   addMealTemplateToLog,
   deleteDailyLogItem,
+  getWeightLog,
   getMealTemplate,
   listWeightLogs,
   listDailyLogItems,
   listMealTemplates,
   updateDailyLogItem,
+  upsertWeightLog,
   type DailyLogItem,
   type MealTemplate,
   type MealTemplateItem,
@@ -23,6 +30,7 @@ import {
   type WeightLog,
 } from "@/lib/supabaseQueries";
 import { computeMacros, fmtCal, fmtMacro, sumMacros } from "@/lib/nutrition";
+import { getErrorMessage } from "@/lib/utils";
 import { Apple, Plus, Scale, Trash2, UtensilsCrossed } from "lucide-react";
 import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";
 import { toast } from "sonner";
@@ -51,35 +59,52 @@ function LogPage() {
   const [weightEndDate, setWeightEndDate] = useState(() => todayString());
   const [weightLogs, setWeightLogs] = useState<WeightLog[]>([]);
   const [weightLoading, setWeightLoading] = useState(true);
+  const [selectedWeightLog, setSelectedWeightLog] = useState<WeightLog | null>(null);
+  const [selectedWeightInput, setSelectedWeightInput] = useState("");
+  const [weightEditorOpen, setWeightEditorOpen] = useState(false);
+  const [savingWeight, setSavingWeight] = useState(false);
 
   const [pickedProduct, setPickedProduct] = useState<Product | null>(null);
   const [pickedQty, setPickedQty] = useState(100);
 
   const [templates, setTemplates] = useState<MealTemplate[]>([]);
-  const [mealConfirmItems, setMealConfirmItems] = useState<(MealTemplateItem & { qty: number })[]>([]);
+  const [mealConfirmItems, setMealConfirmItems] = useState<(MealTemplateItem & { qty: number })[]>(
+    [],
+  );
   const [pickedTemplate, setPickedTemplate] = useState<MealTemplate | null>(null);
 
-  async function refresh() {
+  const refresh = useCallback(async () => {
     setLoading(true);
-    const list = await listDailyLogItems(date);
-    setItems(list);
-    setLoading(false);
-  }
+    try {
+      const [list, weight] = await Promise.all([listDailyLogItems(date), getWeightLog(date)]);
+      setItems(list);
+      setSelectedWeightLog(weight);
+      setSelectedWeightInput(weight ? String(Number(weight.weight_kg)) : "");
+    } catch (e: unknown) {
+      toast.error(getErrorMessage(e, "Could not load log"));
+    } finally {
+      setLoading(false);
+    }
+  }, [date]);
 
   useEffect(() => {
     refresh();
-  }, [date]);
+  }, [refresh]);
 
   useEffect(() => {
     setWeightLoading(true);
     listWeightLogs(weightStartDate, weightEndDate)
       .then(setWeightLogs)
-      .catch((e) => toast.error(e.message ?? "Could not load weight logs"))
+      .catch((e: unknown) => toast.error(getErrorMessage(e, "Could not load weight logs")))
       .finally(() => setWeightLoading(false));
   }, [weightStartDate, weightEndDate]);
 
   const totals = sumMacros(
-    items.map((i) => (i.product ? computeMacros(i.product, i.quantity_g) : { calories: 0, protein: 0, carbs: 0, fat: 0 })),
+    items.map((i) =>
+      i.product
+        ? computeMacros(i.product, i.quantity_g)
+        : { calories: 0, protein: 0, carbs: 0, fat: 0 },
+    ),
   );
 
   const grouped: Record<string, DailyLogItem[]> = {};
@@ -133,6 +158,35 @@ function LogPage() {
     toast.success("Meal logged");
   }
 
+  async function saveSelectedWeight() {
+    const normalizedInput = selectedWeightInput.trim().replace(",", ".");
+    const weight = Number(normalizedInput);
+    if (!Number.isFinite(weight) || weight <= 0) {
+      toast.error("Enter a valid weight");
+      return;
+    }
+
+    setSavingWeight(true);
+    try {
+      const saved = await upsertWeightLog({ date, weight_kg: weight });
+      setSelectedWeightLog(saved);
+      setSelectedWeightInput(String(Number(saved.weight_kg)));
+      setWeightEditorOpen(false);
+      if (date >= weightStartDate && date <= weightEndDate) {
+        setWeightLoading(true);
+        listWeightLogs(weightStartDate, weightEndDate)
+          .then(setWeightLogs)
+          .catch((e: unknown) => toast.error(getErrorMessage(e, "Could not refresh weight chart")))
+          .finally(() => setWeightLoading(false));
+      }
+      toast.success("Weight saved");
+    } catch (e: unknown) {
+      toast.error(getErrorMessage(e, "Could not save weight"));
+    } finally {
+      setSavingWeight(false);
+    }
+  }
+
   const mealConfirmTotals = sumMacros(
     mealConfirmItems.map((i) =>
       i.product ? computeMacros(i.product, i.qty) : { calories: 0, protein: 0, carbs: 0, fat: 0 },
@@ -180,6 +234,33 @@ function LogPage() {
           <span className="font-semibold text-sm">Add meal</span>
         </button>
       </div>
+
+      <button
+        onClick={() => {
+          setSelectedWeightInput(
+            selectedWeightLog ? String(Number(selectedWeightLog.weight_kg)) : "",
+          );
+          setWeightEditorOpen(true);
+        }}
+        className="mt-3 w-full rounded-2xl border border-border bg-card p-4 text-left flex items-center justify-between gap-3 hover:border-primary/50"
+      >
+        <span className="flex items-center gap-3">
+          <span className="h-10 w-10 rounded-xl bg-secondary flex items-center justify-center">
+            <Scale className="h-5 w-5 text-primary" />
+          </span>
+          <span>
+            <span className="block font-semibold">
+              {selectedWeightLog ? "Update weight" : "Log weight"}
+            </span>
+            <span className="block text-xs text-muted-foreground">
+              {selectedWeightLog
+                ? `${Number(selectedWeightLog.weight_kg).toFixed(1)} kg on ${formatShortDate(date)}`
+                : `Record body weight for ${formatShortDate(date)}`}
+            </span>
+          </span>
+        </span>
+        <Plus className="h-4 w-4 text-muted-foreground" />
+      </button>
 
       <div className="mt-6 rounded-2xl border border-border bg-card p-4">
         <div className="flex items-start justify-between gap-3">
@@ -236,7 +317,9 @@ function LogPage() {
           {weightLoading ? (
             <p className="text-sm text-muted-foreground py-10 text-center">Loading weight data…</p>
           ) : weightChartData.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-10 text-center">No weight logged in this range.</p>
+            <p className="text-sm text-muted-foreground py-10 text-center">
+              No weight logged in this range.
+            </p>
           ) : (
             <ChartContainer config={weightChartConfig} className="h-52 w-full">
               <LineChart data={weightChartData} margin={{ left: 8, right: 8, top: 12, bottom: 0 }}>
@@ -306,7 +389,8 @@ function LogPage() {
                           <p className="font-medium truncate">{i.product?.name}</p>
                           {m && (
                             <p className="text-xs text-muted-foreground">
-                              {fmtCal(m.calories)} kcal · P {fmtMacro(m.protein)} · C {fmtMacro(m.carbs)} · F {fmtMacro(m.fat)}
+                              {fmtCal(m.calories)} kcal · P {fmtMacro(m.protein)} · C{" "}
+                              {fmtMacro(m.carbs)} · F {fmtMacro(m.fat)}
                             </p>
                           )}
                         </div>
@@ -318,7 +402,10 @@ function LogPage() {
                         </button>
                       </div>
                       <div className="mt-2">
-                        <QuantityInput value={Number(i.quantity_g)} onChange={(v) => changeQty(i, v)} />
+                        <QuantityInput
+                          value={Number(i.quantity_g)}
+                          onChange={(v) => changeQty(i, v)}
+                        />
                       </div>
                     </div>
                   );
@@ -340,7 +427,44 @@ function LogPage() {
         />
       </Sheet>
 
-      <Sheet open={addMode === "productQty"} onClose={() => setAddMode("none")} title={pickedProduct?.name}>
+      <Sheet
+        open={weightEditorOpen}
+        onClose={() => setWeightEditorOpen(false)}
+        title={`Weight for ${formatShortDate(date)}`}
+      >
+        <div className="space-y-4">
+          <div>
+            <label className="block text-xs text-muted-foreground mb-1.5 ml-1">Weight</label>
+            <div className="relative">
+              <input
+                type="text"
+                inputMode="decimal"
+                pattern="[0-9]*[.,]?[0-9]*"
+                value={selectedWeightInput}
+                onChange={(e) => setSelectedWeightInput(e.target.value)}
+                className="w-full h-12 rounded-xl bg-input px-4 pr-12 text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                placeholder="e.g. 72.5"
+              />
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+                kg
+              </span>
+            </div>
+          </div>
+          <button
+            onClick={saveSelectedWeight}
+            disabled={savingWeight}
+            className="w-full h-12 rounded-xl bg-gradient-primary text-primary-foreground font-semibold shadow-glow disabled:opacity-60"
+          >
+            {savingWeight ? "Saving..." : "Save weight"}
+          </button>
+        </div>
+      </Sheet>
+
+      <Sheet
+        open={addMode === "productQty"}
+        onClose={() => setAddMode("none")}
+        title={pickedProduct?.name}
+      >
         {pickedProduct && (
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">How many grams?</p>
@@ -376,7 +500,11 @@ function LogPage() {
         )}
       </Sheet>
 
-      <Sheet open={addMode === "mealConfirm"} onClose={() => setAddMode("none")} title={`Log ${pickedTemplate?.name}`}>
+      <Sheet
+        open={addMode === "mealConfirm"}
+        onClose={() => setAddMode("none")}
+        title={`Log ${pickedTemplate?.name}`}
+      >
         <div className="space-y-3">
           <MacroSummaryCard macros={mealConfirmTotals} />
           {mealConfirmItems.map((it, idx) => (
@@ -385,7 +513,9 @@ function LogPage() {
               <QuantityInput
                 value={it.qty}
                 onChange={(v) =>
-                  setMealConfirmItems((prev) => prev.map((x, i) => (i === idx ? { ...x, qty: v } : x)))
+                  setMealConfirmItems((prev) =>
+                    prev.map((x, i) => (i === idx ? { ...x, qty: v } : x)),
+                  )
                 }
               />
             </div>
@@ -428,7 +558,9 @@ function DateField({
 function rangeButtonClass(active: boolean) {
   return [
     "h-10 rounded-xl text-sm font-medium transition-colors",
-    active ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground hover:text-foreground",
+    active
+      ? "bg-primary text-primary-foreground"
+      : "bg-secondary text-muted-foreground hover:text-foreground",
   ].join(" ");
 }
 

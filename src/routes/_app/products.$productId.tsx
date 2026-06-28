@@ -1,8 +1,9 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { AppShell } from "@/components/AppShell";
-import { ProductForm, fromProduct } from "@/components/ProductForm";
+import { ProductForm, fromProduct, type ProductFormValues } from "@/components/ProductForm";
 import { deleteProduct, getProduct, updateProduct, type Product } from "@/lib/supabaseQueries";
+import { getErrorMessage } from "@/lib/utils";
 import { Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -23,11 +24,12 @@ function ProductDetail() {
     });
   }, [productId]);
 
-  async function save(v: any) {
+  async function save(v: ProductFormValues) {
     try {
       const p = await updateProduct(productId, {
         name: v.name.trim(),
         brand: v.brand.trim() || null,
+        category: v.category,
         calories_per_100g: v.calories_per_100g,
         protein_per_100g: v.protein_per_100g,
         carbs_per_100g: v.carbs_per_100g,
@@ -36,30 +38,44 @@ function ProductDetail() {
       });
       setProduct(p);
       toast.success("Updated");
-    } catch (e: any) {
-      toast.error(e.message);
+    } catch (e: unknown) {
+      toast.error(getErrorMessage(e));
     }
   }
 
   async function remove() {
-    if (!confirm("Delete this product? It will be removed from any meal templates and logs.")) return;
+    if (!confirm("Delete this product? It will be removed from any meal templates and logs."))
+      return;
     try {
       await deleteProduct(productId);
       toast.success("Deleted");
       nav({ to: "/products" });
-    } catch (e: any) {
-      toast.error(e.message);
+    } catch (e: unknown) {
+      toast.error(getErrorMessage(e));
     }
   }
 
-  if (loading) return <AppShell title="Product"><p className="text-muted-foreground">Loading…</p></AppShell>;
-  if (!product) return <AppShell title="Product"><p className="text-muted-foreground">Not found.</p></AppShell>;
+  if (loading)
+    return (
+      <AppShell title="Product">
+        <p className="text-muted-foreground">Loading…</p>
+      </AppShell>
+    );
+  if (!product)
+    return (
+      <AppShell title="Product">
+        <p className="text-muted-foreground">Not found.</p>
+      </AppShell>
+    );
 
   return (
     <AppShell
       title="Edit product"
       action={
-        <button onClick={remove} className="h-10 w-10 rounded-xl bg-secondary flex items-center justify-center text-destructive">
+        <button
+          onClick={remove}
+          className="h-10 w-10 rounded-xl bg-secondary flex items-center justify-center text-destructive"
+        >
           <Trash2 className="h-4 w-4" />
         </button>
       }

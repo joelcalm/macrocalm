@@ -2,7 +2,13 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { ProductCard } from "@/components/ProductCard";
+import {
+  PRODUCT_CATEGORIES,
+  PRODUCT_CATEGORY_LABELS,
+  type ProductCategory,
+} from "@/lib/productCategories";
 import { listProducts, type Product } from "@/lib/supabaseQueries";
+import { getErrorMessage } from "@/lib/utils";
 import { Plus, Search } from "lucide-react";
 
 export const Route = createFileRoute("/_app/products/")({
@@ -12,22 +18,31 @@ export const Route = createFileRoute("/_app/products/")({
 function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [q, setQ] = useState("");
+  const [category, setCategory] = useState<ProductCategory | "all">("all");
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    listProducts().then((p) => {
-      setProducts(p);
-      setLoading(false);
-    });
+    listProducts({ ensureStarterProducts: true })
+      .then((p) => {
+        setProducts(p);
+        setError(null);
+      })
+      .catch((e: unknown) => {
+        setError(getProductLoadError(e));
+      })
+      .finally(() => setLoading(false));
   }, []);
 
   const filtered = useMemo(() => {
     const s = q.toLowerCase().trim();
-    if (!s) return products;
-    return products.filter(
+    const byCategory =
+      category === "all" ? products : products.filter((p) => p.category === category);
+    if (!s) return byCategory;
+    return byCategory.filter(
       (p) => p.name.toLowerCase().includes(s) || (p.brand ?? "").toLowerCase().includes(s),
     );
-  }, [q, products]);
+  }, [q, products, category]);
 
   return (
     <AppShell
@@ -51,8 +66,29 @@ function ProductsPage() {
         />
       </div>
 
+      <div className="mb-4 -mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
+        <CategoryButton
+          label="All"
+          active={category === "all"}
+          onClick={() => setCategory("all")}
+        />
+        {PRODUCT_CATEGORIES.map((item) => (
+          <CategoryButton
+            key={item}
+            label={PRODUCT_CATEGORY_LABELS[item]}
+            active={category === item}
+            onClick={() => setCategory(item)}
+          />
+        ))}
+      </div>
+
       {loading ? (
         <p className="text-sm text-muted-foreground">Loading…</p>
+      ) : error ? (
+        <div className="rounded-2xl border border-destructive/40 bg-destructive/10 p-4">
+          <p className="text-sm font-medium text-destructive">Could not load products</p>
+          <p className="mt-1 text-sm text-muted-foreground">{error}</p>
+        </div>
       ) : filtered.length === 0 ? (
         <div className="text-center py-12 rounded-2xl border border-dashed border-border">
           <p className="text-sm text-muted-foreground">
@@ -72,5 +108,37 @@ function ProductsPage() {
         </div>
       )}
     </AppShell>
+  );
+}
+
+function getProductLoadError(error: unknown) {
+  const message = getErrorMessage(error, "Could not load products");
+  if (message.toLowerCase().includes("category")) {
+    return "The products category migration has not been applied to Supabase yet. Apply the new migration, then reload this page.";
+  }
+  return message;
+}
+
+function CategoryButton({
+  label,
+  active,
+  onClick,
+}: {
+  label: string;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`h-9 shrink-0 rounded-xl px-3 text-sm font-medium transition-colors ${
+        active
+          ? "bg-primary text-primary-foreground"
+          : "bg-secondary text-muted-foreground hover:text-foreground"
+      }`}
+    >
+      {label}
+    </button>
   );
 }
