@@ -1,11 +1,11 @@
 import { Link, useLocation } from "@tanstack/react-router";
-import { LayoutDashboard, Apple, UtensilsCrossed, ClipboardList, Settings } from "lucide-react";
+import { Apple, ClipboardList, Dumbbell, Settings, UtensilsCrossed } from "lucide-react";
 
 const tabs = [
-  { to: "/", icon: LayoutDashboard, label: "Today" },
+  { to: "/log", icon: ClipboardList, label: "Log" },
+  { to: "/workout", icon: Dumbbell, label: "Workout" },
   { to: "/products", icon: Apple, label: "Products" },
   { to: "/meals", icon: UtensilsCrossed, label: "Meals" },
-  { to: "/log", icon: ClipboardList, label: "Log" },
   { to: "/settings", icon: Settings, label: "Settings" },
 ] as const;
 
@@ -34,7 +34,9 @@ export function BottomNav() {
                 >
                   <Icon className="h-[18px] w-[18px]" />
                 </div>
-                <span className={active ? "text-foreground mt-0.5" : "text-muted-foreground mt-0.5"}>
+                <span
+                  className={active ? "text-foreground mt-0.5" : "text-muted-foreground mt-0.5"}
+                >
                   {t.label}
                 </span>
               </Link>

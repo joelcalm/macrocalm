@@ -3,6 +3,7 @@ import { AppShell } from "@/components/AppShell";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { exportAllData } from "@/lib/supabaseQueries";
+import { getErrorMessage } from "@/lib/utils";
 import { Download, FileJson, Info, LogOut } from "lucide-react";
 import { toast } from "sonner";
 
@@ -22,9 +23,13 @@ function SettingsPage() {
   async function exportJson() {
     try {
       const data = await exportAllData();
-      downloadFile(`macro-export-${Date.now()}.json`, JSON.stringify(data, null, 2), "application/json");
-    } catch (e: any) {
-      toast.error(e.message);
+      downloadFile(
+        `macro-export-${Date.now()}.json`,
+        JSON.stringify(data, null, 2),
+        "application/json",
+      );
+    } catch (e: unknown) {
+      toast.error(getErrorMessage(e, "Could not export JSON"));
     }
   }
 
@@ -32,18 +37,28 @@ function SettingsPage() {
     try {
       const data = await exportAllData();
       const rows: string[] = ["table,id,json"];
-      const dump = (table: string, arr: any[] | null) => {
-        (arr ?? []).forEach((r) => rows.push(`${table},${r.id},"${JSON.stringify(r).replace(/"/g, '""')}"`));
+      const dump = (table: string, arr: unknown[] | null) => {
+        (arr ?? []).forEach((row) => {
+          const record = isRecord(row) ? row : {};
+          const id = typeof record.id === "string" ? record.id : "";
+          rows.push(`${table},${id},"${JSON.stringify(row).replace(/"/g, '""')}"`);
+        });
       };
-      dump("products", data.products as any[]);
-      dump("meal_templates", data.meal_templates as any[]);
-      dump("meal_template_items", data.meal_template_items as any[]);
-      dump("daily_logs", data.daily_logs as any[]);
-      dump("daily_log_items", data.daily_log_items as any[]);
-      dump("weight_logs", data.weight_logs as any[]);
+      dump("products", data.products);
+      dump("meal_templates", data.meal_templates);
+      dump("meal_template_items", data.meal_template_items);
+      dump("daily_logs", data.daily_logs);
+      dump("daily_log_items", data.daily_log_items);
+      dump("weight_logs", data.weight_logs);
+      dump("workout_plans", data.workout_plans);
+      dump("workout_day_plans", data.workout_day_plans);
+      dump("workout_blocks", data.workout_blocks);
+      dump("workout_exercise_plans", data.workout_exercise_plans);
+      dump("workout_session_logs", data.workout_session_logs);
+      dump("workout_exercise_logs", data.workout_exercise_logs);
       downloadFile(`macro-export-${Date.now()}.csv`, rows.join("\n"), "text/csv");
-    } catch (e: any) {
-      toast.error(e.message);
+    } catch (e: unknown) {
+      toast.error(getErrorMessage(e, "Could not export CSV"));
     }
   }
 
@@ -57,8 +72,9 @@ function SettingsPage() {
       <div className="rounded-2xl border border-border bg-card p-4 mb-4 flex gap-3">
         <Info className="h-5 w-5 text-primary shrink-0 mt-0.5" />
         <p className="text-sm text-muted-foreground">
-          All nutrition values are stored <span className="text-foreground font-medium">per 100g</span>.
-          Actual calories and macros are calculated from the quantity you enter when logging.
+          All nutrition values are stored{" "}
+          <span className="text-foreground font-medium">per 100g</span>. Actual calories and macros
+          are calculated from the quantity you enter when logging.
         </p>
       </div>
 
@@ -98,4 +114,8 @@ function downloadFile(name: string, content: string, mime: string) {
   a.download = name;
   a.click();
   URL.revokeObjectURL(url);
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }

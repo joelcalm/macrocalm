@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
+import { Route as AppWorkoutRouteImport } from './routes/_app/workout'
 import { Route as AppSettingsRouteImport } from './routes/_app/settings'
 import { Route as AppLogRouteImport } from './routes/_app/log'
 import { Route as AppProductsIndexRouteImport } from './routes/_app/products.index'
@@ -33,6 +34,11 @@ const AppRoute = AppRouteImport.update({
 const AppIndexRoute = AppIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppWorkoutRoute = AppWorkoutRouteImport.update({
+  id: '/workout',
+  path: '/workout',
   getParentRoute: () => AppRoute,
 } as any)
 const AppSettingsRoute = AppSettingsRouteImport.update({
@@ -81,6 +87,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/log': typeof AppLogRoute
   '/settings': typeof AppSettingsRoute
+  '/workout': typeof AppWorkoutRoute
   '/meals/$mealId': typeof AppMealsMealIdRoute
   '/meals/new': typeof AppMealsNewRoute
   '/products/$productId': typeof AppProductsProductIdRoute
@@ -92,6 +99,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/log': typeof AppLogRoute
   '/settings': typeof AppSettingsRoute
+  '/workout': typeof AppWorkoutRoute
   '/': typeof AppIndexRoute
   '/meals/$mealId': typeof AppMealsMealIdRoute
   '/meals/new': typeof AppMealsNewRoute
@@ -106,6 +114,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/_app/log': typeof AppLogRoute
   '/_app/settings': typeof AppSettingsRoute
+  '/_app/workout': typeof AppWorkoutRoute
   '/_app/': typeof AppIndexRoute
   '/_app/meals/$mealId': typeof AppMealsMealIdRoute
   '/_app/meals/new': typeof AppMealsNewRoute
@@ -121,6 +130,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/log'
     | '/settings'
+    | '/workout'
     | '/meals/$mealId'
     | '/meals/new'
     | '/products/$productId'
@@ -132,6 +142,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/log'
     | '/settings'
+    | '/workout'
     | '/'
     | '/meals/$mealId'
     | '/meals/new'
@@ -145,6 +156,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/_app/log'
     | '/_app/settings'
+    | '/_app/workout'
     | '/_app/'
     | '/_app/meals/$mealId'
     | '/_app/meals/new'
@@ -180,6 +192,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof AppIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/workout': {
+      id: '/_app/workout'
+      path: '/workout'
+      fullPath: '/workout'
+      preLoaderRoute: typeof AppWorkoutRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/settings': {
@@ -244,6 +263,7 @@ declare module '@tanstack/react-router' {
 interface AppRouteChildren {
   AppLogRoute: typeof AppLogRoute
   AppSettingsRoute: typeof AppSettingsRoute
+  AppWorkoutRoute: typeof AppWorkoutRoute
   AppIndexRoute: typeof AppIndexRoute
   AppMealsMealIdRoute: typeof AppMealsMealIdRoute
   AppMealsNewRoute: typeof AppMealsNewRoute
@@ -256,6 +276,7 @@ interface AppRouteChildren {
 const AppRouteChildren: AppRouteChildren = {
   AppLogRoute: AppLogRoute,
   AppSettingsRoute: AppSettingsRoute,
+  AppWorkoutRoute: AppWorkoutRoute,
   AppIndexRoute: AppIndexRoute,
   AppMealsMealIdRoute: AppMealsMealIdRoute,
   AppMealsNewRoute: AppMealsNewRoute,

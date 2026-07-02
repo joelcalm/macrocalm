@@ -445,13 +445,32 @@ export async function listWeightLogs(startDate: string, endDate: string): Promis
 /* ---------------- export ---------------- */
 
 export async function exportAllData() {
-  const [products, templates, items, logs, logItems, weightLogs] = await Promise.all([
+  const [
+    products,
+    templates,
+    items,
+    logs,
+    logItems,
+    weightLogs,
+    workoutPlans,
+    workoutDayPlans,
+    workoutBlocks,
+    workoutExercisePlans,
+    workoutSessionLogs,
+    workoutExerciseLogs,
+  ] = await Promise.all([
     supabase.from("products").select("*"),
     supabase.from("meal_templates").select("*"),
     supabase.from("meal_template_items").select("*"),
     supabase.from("daily_logs").select("*"),
     supabase.from("daily_log_items").select("*"),
     supabase.from("weight_logs").select("*"),
+    supabase.from("workout_plans").select("*"),
+    supabase.from("workout_day_plans").select("*"),
+    supabase.from("workout_blocks").select("*"),
+    supabase.from("workout_exercise_plans").select("*"),
+    supabase.from("workout_session_logs").select("*"),
+    supabase.from("workout_exercise_logs").select("*"),
   ]);
   return {
     products: products.data,
@@ -460,6 +479,12 @@ export async function exportAllData() {
     daily_logs: logs.data,
     daily_log_items: logItems.data,
     weight_logs: weightLogs.data,
+    workout_plans: workoutPlans.data,
+    workout_day_plans: workoutDayPlans.data,
+    workout_blocks: workoutBlocks.data,
+    workout_exercise_plans: workoutExercisePlans.data,
+    workout_session_logs: workoutSessionLogs.data,
+    workout_exercise_logs: workoutExerciseLogs.data,
     exported_at: new Date().toISOString(),
   };
 }
